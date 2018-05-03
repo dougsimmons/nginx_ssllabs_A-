@@ -2,11 +2,17 @@
 # Warning, some of the HTTPS settings are permanent, don't 
 # just copy and paste this, learn what each item, like the 
 # add_header specifications for example, before testing on 
-# your own site!
-#
-# As of time of test ssllabs likes 4096 bit dhparams
+# your own site! Much of this is just personal preference
+# and could probably have been done in fewer lines. As of
+# time of test ssllabs likes 4096 bit dhparam.
 
 
+# Redirect http + domain + uri to https + domain + uri 
+server {
+        listen 80;
+        server_name example.com;
+        return 301 https://example.com$request_uri;
+}
 
 # redirect http + www sub + domain + uri to https + domain + uri 
 server {
@@ -14,7 +20,6 @@ server {
         server_name *.example.com;
 	return 301 https://example.com$request_uri;
 }
-
 
 # redirect https + www sub + domain + uri to https + domain + uri 
 server {
