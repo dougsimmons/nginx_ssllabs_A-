@@ -1,0 +1,114 @@
+# Scored 400/400 A+ on https://dev.ssllabs.com 03 May 2018
+# Warning, some of the HTTPS settings are permanent, don't 
+# just copy and paste this, learn what each item, like the 
+# add_header specifications for example, before testing on 
+# your own site!
+#
+# As of time of test ssllabs likes 4096 bit dhparams
+
+
+
+# redirect http + www sub + domain + uri to https + domain + uri 
+server {
+	listen 80;
+        server_name *.example.com;
+	return 301 https://example.com$request_uri;
+}
+
+
+# redirect https + www sub + domain + uri to https + domain + uri 
+server {
+    listen 443 ssl;   
+    server_name www.example.com;
+    return 301 https://example.com$request_uri;
+    ssl_certificate /etc/nginx/ssl/example.com/cert_chain.crt;
+    ssl_certificate_key /etc/nginx/ssl/example.com/server.key;
+}
+
+
+# the actual SSL HTTP2 server
+server {
+	listen 443 ssl http2;
+        server_name example.com;
+        root /webdirectory/example.com/;
+	index index.php index.html index.htm index.nginx-debian.html;
+	access_log /var/log/nginx/example.com-access.log;
+	error_log /var/log/nginx/example.com-error.log;
+	gzip off; ## TURN OFF GZIP ON SSL
+
+        ssl on;
+        ssl_stapling on;
+        ssl_stapling_verify on;
+        resolver 8.8.8.8;
+        ssl_trusted_certificate /etc/nginx/ssl/thedirectory/cert_chain.crt;
+        ssl_certificate /etc/nginx/ssl/thedirectory/cert_chain.crt;
+        ssl_certificate_key /etc/nginx/ssl/thedirectory/server.key;
+        ssl_prefer_server_ciphers on;
+        ssl_ciphers AES256+EECDH:AES256+EDH:!aNULL;
+        ssl_dhparam  /etc/nginx/ssl/thedirectory/dhparam.pem;
+        ssl_protocols       TLSv1.2;
+        ssl_ecdh_curve secp384r1;
+        ssl_session_cache shared:SSL:5m;
+        ssl_session_timeout 1h;
+        add_header Strict-Transport-Security 'max-age=63072000; includeSubDomains; preload';
+        add_header X-Frame-Options DENY;
+        add_header X-Content-Type-Options nosniff;
+
+
+# some helpful rewrites
+# make file index of https://example.com/open/ visible without an index.php/html 
+
+        location /open {
+               autoindex on;
+        }
+
+# help conceal that you're using php so that if uri /secret.php exists it is accessible with uri /secret or /secret/
+        location / {
+            try_files $uri $uri.html $uri/ @extensionless-php;
+            index index.html index.htm index.php;
+        }
+
+        location @extensionless-php {
+        rewrite ^(.*)$ $1.php last;
+        }
+
+
+# basic fastcgi/php config for nginx
+        location ~ \.php$ {
+                include snippets/fastcgi-php.conf;
+                fastcgi_pass unix:/run/php/php7.0-fpm.sock;
+        }
+
+
+# Google's ngx_pagespeed for fast speed! 
+# Config tweaks that works well for my site, 
+# not necessarily yours, omit if you didn't 
+# compile nginx with pagespeed
+
+pagespeed on;
+pagespeed FileCachePath              "/var/cache/ps/";
+pagespeed FileCacheSizeKb            1024000;
+pagespeed FileCacheCleanIntervalMs   3600000;
+pagespeed FileCacheInodeLimit        500000;
+pagespeed RewriteLevel CoreFilters;
+pagespeed EnableFilters combine_css,extend_cache,rewrite_images;
+pagespeed EnableFilters rewrite_css,rewrite_javascript;
+pagespeed EnableFilters collapse_whitespace;
+pagespeed EnableFilters elide_attributes;
+pagespeed EnableFilters prioritize_critical_css;
+pagespeed EnableFilters remove_comments;
+pagespeed EnableFilters remove_quotes;
+pagespeed EnableFilters trim_urls;
+pagespeed EnableFilters insert_image_dimensions;
+pagespeed HttpCacheCompressionLevel 0;
+pagespeed EnableFilters responsive_images,resize_images;
+pagespeed EnableFilters strip_image_color_profile;
+pagespeed EnableFilters inline_css;
+pagespeed CssInlineMaxBytes 20240;
+pagespeed EnableFilters inline_javascript;
+pagespeed JsInlineMaxBytes 20240;
+pagespeed EnableFilters strip_image_meta_data;
+pagespeed EnableFilters inline_images;
+pagespeed DisableFilters add_instrumentation;
+
+}
